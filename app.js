@@ -91,8 +91,13 @@ async function reverseGeocode(lat, lon) {
   if (!res.ok) throw new Error('Reverse geocoding failed');
   const data = await res.json();
   const r = (data.results || [])[0];
-  if (!r) return { name: 'Your location', admin1: '', country_code: '' };
-  return r;
+  if (!r) {
+  return { name: 'Your location', admin1: '', latitude: lat, longitude: lon };
+}
+r.latitude = lat;
+r.longitude = lon;
+return r;
+
 }
 
 async function fetchWeather(lat, lon, tz) {
@@ -336,5 +341,6 @@ if (savedPlace) {
 } else {
   requestLocation();
 }
+
 
 
