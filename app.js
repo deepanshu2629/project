@@ -65,45 +65,40 @@ function isInIndia(lat, lon) {
   return lat >= INDIA_BOUNDS.minLat && lat <= INDIA_BOUNDS.maxLat && lon >= INDIA_BOUNDS.minLon && lon <= INDIA_BOUNDS.maxLon;
 }
 
-async function getLocationName() {
-  // 1. Get coordinates using browser Geolocation API
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your browser.");
-    return;
-  }
+async function geocodeIndia(query) {
+  const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
+  url.searchParams.set('name', query);
+  url.searchParams.set('count', '7');
+  url.searchParams.set('language', 'en');
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('filter', 'countrycode=IN');
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
-    const latitude = position.coords.latitude;
-    const longitude = position.coords.longitude;
-
-    console.log(`Coordinates: ${latitude}, ${longitude}`);
-
-    try {
-      // 2. Use Nominatim (OpenStreetMap) for reverse geocoding
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
-      const data = await response.json();
-
-      if (data && data.address) {
-        const { city, town, village, state, country } = data.address;
-
-        // Fallback for city-level name
-        const locationName = city || town || village || state || country || "Unknown location";
-
-        console.log("Location:", locationName);
-        alert(`You are in: ${locationName}`);
-      } else {
-        alert("Location data not found.");
-      }
-    } catch (error) {
-      console.error("Reverse geocoding failed:", error);
-      alert("Failed to get location name.");
-    }
-  }, (error) => {
-    console.error("Geolocation error:", error);
-    alert("Failed to get your location.");
-  });
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error('Geocoding failed');
+  const data = await res.json();
+  const results = (data.results || []).filter(r => r.country_code === 'IN' && isInIndia(r.latitude, r.longitude));
+  return results;
 }
 
+async function reverseGeocode(lat, lon) {
+  const url = new URL('https://geocoding-api.open-meteo.com/v1/reverse');
+  url.searchParams.set('latitude', lat);
+  url.searchParams.set('longitude', lon);
+  url.searchParams.set('language', 'en');
+  url.searchParams.set('format', 'json');
+
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error('Reverse geocoding failed');
+  const data = await res.json();
+  const r = (data.results || [])[0];
+  if (!r) {
+  return { name: 'Your location', admin1: '', latitude: lat, longitude: lon };
+}
+r.latitude = lat;
+r.longitude = lon;
+return r;
+
+}
 
 async function fetchWeather(lat, lon, tz) {
   const url = new URL('https://api.open-meteo.com/v1/forecast');
@@ -345,8 +340,4 @@ if (savedPlace) {
   } catch {}
 } else {
   requestLocation();
-}
-
-
-
-
+    }
